@@ -98,33 +98,29 @@ static void get_bat_num(struct gc_data *gc)
         read(*gc->openfd, gc->bat0bufptr, gc->file_sz);
 }
 
-static void exec(struct gc_data *gc, char* bat0)
+static void exec_notify_send(struct gc_data *gc, char** envp, char* text)
 {
-        int len = 2 + 1 + gc->file_sz;
-
-        char* snprintfbuf = (char*)malloc(len);
-        memset(snprintfbuf, '\0', len);
-
-        snprintf(snprintfbuf, len, "%s", bat0);
 
         char* args[] = {
-                NOTIFY_SEND_PATH, snprintfbuf, NULL
+                NOTIFY_SEND_PATH, text, NULL
         };
 
-        char *env[] = { 
-                "DISPLAY=:0.0", 
-                "DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/dbus-YY3FKxW0FU",
-                "guid=89e1272fd6c1e0b8c15834a666c048cc",
-                "DBUS_SESSION_BUS_PID=68930", NULL
-         };
-
-        execve(NOTIFY_SEND_PATH, args, env);
-
-        free(snprintfbuf);
+        execve(NOTIFY_SEND_PATH, args, envp);
 }
 
 
-int main(void)
+static void exec_xsetroot(struct gc_data *gc, char** envp, char* text)
+{
+
+        char* args[] = {
+                XSETROOT_PATH, "-name", text, NULL
+        };
+
+        execve(XSETROOT_PATH, args, envp);
+}
+
+
+int main(int argc, char **argv, char *envp[])
 {
         signal(SIGINT, signal_handler);
         struct gc_data gc;
@@ -137,7 +133,7 @@ int main(void)
                 
         //         free(cropped);
         // }
-        exec(&gc, "test test test");
+        exec_xsetroot(&gc, envp, "tes aaa st");
 
         run_garbage_collector_clear(&gc);
         return 0;
