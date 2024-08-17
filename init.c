@@ -98,6 +98,31 @@ static void get_bat_num(struct gc_data *gc)
         read(*gc->openfd, gc->bat0bufptr, gc->file_sz);
 }
 
+static void exec(struct gc_data *gc, char* bat0)
+{
+        int len = 2 + 1 + gc->file_sz;
+
+        char* snprintfbuf = (char*)malloc(len);
+        memset(snprintfbuf, '\0', len);
+
+        snprintf(snprintfbuf, len, "%s", bat0);
+
+        char* args[] = {
+                NOTIFY_SEND_PATH, snprintfbuf, NULL
+        };
+
+        char *env[] = { 
+                "DISPLAY=:0.0", 
+                "DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/dbus-YY3FKxW0FU",
+                "guid=89e1272fd6c1e0b8c15834a666c048cc",
+                "DBUS_SESSION_BUS_PID=68930", NULL
+         };
+
+        execve(NOTIFY_SEND_PATH, args, env);
+
+        free(snprintfbuf);
+}
+
 
 int main(void)
 {
@@ -106,10 +131,13 @@ int main(void)
 
         setup_fd(&gc);
 
-        get_bat_num(&gc);
-        char* cropped = newline_cut(gc.bat0bufptr, &gc);
-        printf("%s", cropped);
-        free(cropped);
+        // while (!need_exit) {
+        //         get_bat_num(&gc);
+        //         char* cropped = newline_cut(gc.bat0bufptr, &gc);
+                
+        //         free(cropped);
+        // }
+        exec(&gc, "test test test");
 
         run_garbage_collector_clear(&gc);
         return 0;
