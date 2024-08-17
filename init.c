@@ -12,6 +12,11 @@
 #include <string.h>
 #include "config.h"
 #include <stdlib.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xatom.h>
+#include <X11/Xmu/CurUtil.h>
+#include <X11/Xcursor/Xcursor.h>
 
 #define debug(x) printf("%s\n", x)
 #define IBUF_LEN (10 * (sizeof(struct inotify_event) + strlen(BAT0_DIR) + 1))
@@ -23,6 +28,14 @@ struct gc_data {
         char            *bat0bufptr;
         off_t            file_sz;
 };
+
+struct xorg_data {
+        Display *dpy;
+        int screen;
+        Window root;
+};
+
+
 
 void signal_handler(int signal)
 {
