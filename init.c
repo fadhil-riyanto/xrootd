@@ -35,6 +35,22 @@ struct xorg_data {
         Window root;
 };
 
+static void x_start(struct xorg_data *xorg_data)
+{
+        xorg_data->dpy = XOpenDisplay(NULL);
+        xorg_data->screen = DefaultScreen(xorg_data->dpy);
+        xorg_data->root = RootWindow(xorg_data->dpy, xorg_data->screen);
+}
+
+static void xsetroot_summon(struct xorg_data *xorg_data, char* text)
+{
+        XStoreName(xorg_data->dpy, xorg_data->root, text);
+}
+
+static void x_end(struct xorg_data *xorg_data)
+{
+        XCloseDisplay(xorg_data->dpy);
+}
 
 
 void signal_handler(int signal)
@@ -136,6 +152,9 @@ int main(int argc, char **argv, char *envp[])
 {
         signal(SIGINT, signal_handler);
         struct gc_data gc;
+        struct xorg_data xorg_data;
+
+        
 
         char randombuf[100];
 
@@ -150,7 +169,10 @@ int main(int argc, char **argv, char *envp[])
                 
                 snprintf(randombuf, 100, "%s %s %s", time, battery, DESKTOP_NAME);
                 
-                exec_xsetroot(&gc, envp, randombuf);
+                // exec_xsetroot(&gc, envp, randombuf);
+                x_start(&xorg_data);
+                xsetroot_summon(&xorg_data, randombuf);
+                x_end(&xorg_data);
                 
                 free(battery);
                 free(time);
@@ -160,5 +182,6 @@ int main(int argc, char **argv, char *envp[])
         
 
         run_garbage_collector_clear(&gc);
+        
         return 0;
 }
