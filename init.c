@@ -119,21 +119,32 @@ static void exec_xsetroot(struct gc_data *gc, char** envp, char* text)
         execve(XSETROOT_PATH, args, envp);
 }
 
-
 int main(int argc, char **argv, char *envp[])
 {
         signal(SIGINT, signal_handler);
         struct gc_data gc;
 
+        char randombuf[100];
+
         setup_fd(&gc);
 
-        // while (!need_exit) {
-        //         get_bat_num(&gc);
-        //         char* cropped = newline_cut(gc.bat0bufptr, &gc);
+        while (!need_exit) {
+                memset(randombuf, '\0', 100);
+
+                get_bat_num(&gc);
+                char* battery = newline_cut(gc.bat0bufptr, &gc);
+                char* time = newline_cut(get_time(), &gc);
                 
-        //         free(cropped);
-        // }
-        exec_xsetroot(&gc, envp, "tes aaa st");
+                snprintf(randombuf, 100, "%s %s %s", time, battery, DESKTOP_NAME);
+                
+                exec_xsetroot(&gc, envp, randombuf);
+                
+                free(battery);
+                free(time);
+
+                sleep(1);
+        }
+        
 
         run_garbage_collector_clear(&gc);
         return 0;
