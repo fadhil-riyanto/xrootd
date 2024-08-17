@@ -3,3 +3,4 @@
 #define MAX_EVENTS      1
 #define DESKTOP_NAME     "FadhilLinux"
 #define NOTIFY_SEND_PATH     "/usr/bin/notify-send"
+#define XSETROOT_PATH     "/usr/bin/xsetroot"
