@@ -79,18 +79,24 @@ static char* get_time()
         return asctime(timeinfo);
 }
 
+char* newline_cut(char *str, struct gc_data *gc)
+{
+        char* data = (char*)malloc(gc->file_sz);
+        memset(data, '\0', gc->file_sz);
 
+        for(int i = 0 ; i < gc->file_sz; i++) {
+                if (*(str + i) != '\n') {
+                        *(data + i) = *(str + i);
+                }
+        }
+        return data;
+        
+}
 
 static void get_bat_num(struct gc_data *gc)
 {
         read(*gc->openfd, gc->bat0bufptr, gc->file_sz);
 }
-
-
-// static void run_thread()
-// {
-//         pthread_t *
-// }
 
 
 int main(void)
@@ -101,8 +107,9 @@ int main(void)
         setup_fd(&gc);
 
         get_bat_num(&gc);
-
-        printf("%s\n", gc.bat0bufptr);
+        char* cropped = newline_cut(gc.bat0bufptr, &gc);
+        printf("%s", cropped);
+        free(cropped);
 
         run_garbage_collector_clear(&gc);
         return 0;
