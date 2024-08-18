@@ -11,7 +11,11 @@ simulating `xsetroot -name "text"`
 
 just type `./xsetrootd`
 
-nb: make sure X11 lib is installed
+build dependencies:
+- X11
+- gdk-pixbuf
+- glib-2.0
+- libnotify
 
 ## Contributing
 Your contributions are always welcome! 
