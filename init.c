@@ -17,17 +17,15 @@
 #include <X11/Xatom.h>
 #include <X11/Xmu/CurUtil.h>
 #include <X11/Xcursor/Xcursor.h>
+#include <libnotify/notify.h>
 
 #define debug(x) printf("%s\n", x)
 #define IBUF_LEN (10 * (sizeof(struct inotify_event) + strlen(BAT0_DIR) + 1))
 
+
+int sec_counter = 0;
 volatile int need_exit = 0;
 
-struct gc_data {
-        int             *openfd;
-        char            *bat0bufptr;
-        off_t            file_sz;
-};
 
 struct xorg_data {
         Display *dpy;
@@ -58,13 +56,6 @@ void signal_handler(int signal)
         need_exit = 1;
 }
 
-static inline void run_garbage_collector_clear(struct gc_data *gc)
-{
-        /* close(*gc->epfd); */
-        close(*gc->openfd);
-        free(gc->bat0bufptr);
-}
-
 static __off_t getfile_size(int fd)
 {
         struct stat st;
@@ -79,24 +70,6 @@ static __off_t getfile_size(int fd)
         return st.st_size;
 }
 
-static inline int setup_fd(struct gc_data *gc)
-{
-        int ret;
-        ret = open(BAT0_DIR, O_RDONLY);
-
-        if (ret == -1) {
-                perror("open");
-                return -1;
-        }
-
-        gc->openfd = &ret;
-
-        off_t size = getfile_size(*gc->openfd);
-        gc->bat0bufptr = (char*)malloc(size * sizeof(char));
-
-        gc->file_sz = size;
-}
-
 static char* get_time()
 {
         time_t rawtime;
@@ -108,12 +81,12 @@ static char* get_time()
         return asctime(timeinfo);
 }
 
-char* newline_cut(char *str, struct gc_data *gc)
+char* newline_cut(char *str, int size)
 {
-        char* data = (char*)malloc(gc->file_sz);
-        memset(data, '\0', gc->file_sz);
+        char* data = (char*)malloc(size);
+        memset(data, '\0', size);
 
-        for(int i = 0 ; i < gc->file_sz; i++) {
+        for(int i = 0 ; i < size; i++) {
                 if (*(str + i) != '\n') {
                         *(data + i) = *(str + i);
                 }
@@ -122,66 +95,89 @@ char* newline_cut(char *str, struct gc_data *gc)
         
 }
 
-static void get_bat_num(struct gc_data *gc)
+static void notify_exec(char *title, char* body)
 {
-        read(*gc->openfd, gc->bat0bufptr, gc->file_sz);
+        NotifyNotification *notif;
+        notif = notify_notification_new(title, body, NULL);
+
+        notify_notification_show(notif, NULL);
 }
 
-static void exec_notify_send(struct gc_data *gc, char** envp, char* text)
+static void call_when_battery_full(int current)
 {
-
-        char* args[] = {
-                NOTIFY_SEND_PATH, text, NULL
-        };
-
-        execve(NOTIFY_SEND_PATH, args, envp);
+        sec_counter = sec_counter + 1;
+        if (sec_counter == 1) {
+                if (current < 50) {
+                        notify_exec("warning", "Battery low");
+                        
+                } else if (current > 95) {
+                        notify_exec("warning", "Battery full");
+                        
+                }
+                sec_counter = 0;
+        }
 }
 
-
-static void exec_xsetroot(struct gc_data *gc, char** envp, char* text)
+static int open_bat0(const char* bat0dir)
 {
+        return open(bat0dir, O_RDONLY);
+}
 
-        char* args[] = {
-                XSETROOT_PATH, "-name", text, NULL
-        };
+static char* read_bat0(int fd, int *sizeptr)
+{
+        off_t size = getfile_size(fd);
 
-        execve(XSETROOT_PATH, args, envp);
+        *sizeptr = size;
+
+        char *buf = (char*)malloc(size);
+        memset(buf, '\0', size);
+        read(fd, buf, size);
+        return buf;
+}
+
+static int close_bat0(int fd)
+{
+        return close(fd);
+}
+
+void signal_cb(int signal)
+{
+        need_exit = 1;
 }
 
 int main(int argc, char **argv, char *envp[])
 {
         signal(SIGINT, signal_handler);
-        struct gc_data gc;
+        notify_init("xrootdaemon");
         struct xorg_data xorg_data;
-
-        
 
         char randombuf[100];
 
-        setup_fd(&gc);
+        int bat0size = 0;
 
         while (!need_exit) {
-                memset(randombuf, '\0', 100);
+                int fd = open_bat0("/sys/class/power_supply/BAT0/capacity");
+                char* bat0data = read_bat0(fd, &bat0size);
+                char* bat2cutted = newline_cut(bat0data, bat0size);
 
-                get_bat_num(&gc);
-                char* battery = newline_cut(gc.bat0bufptr, &gc);
-                char* time = newline_cut(get_time(), &gc);
-                
-                snprintf(randombuf, 100, "%s %s %s", time, battery, DESKTOP_NAME);
-                
-                // exec_xsetroot(&gc, envp, randombuf);
+                char* timestr = get_time();
+                char* time = newline_cut(timestr, strlen(timestr) + 1);
+
+                snprintf(randombuf, 100, "%s %d %s", time, atoi(bat2cutted), DESKTOP_NAME);
+
                 x_start(&xorg_data);
                 xsetroot_summon(&xorg_data, randombuf);
                 x_end(&xorg_data);
-                
-                free(battery);
-                free(time);
+                call_when_battery_full(atoi(bat2cutted));
 
+                free(bat0data);
+                free(bat2cutted);
+
+                free(time);
+                close_bat0(fd);
                 sleep(1);
         }
-        
 
-        run_garbage_collector_clear(&gc);
-        
+        notify_uninit();
         return 0;
 }
