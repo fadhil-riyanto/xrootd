@@ -1,11 +1,12 @@
 # Xorg root Daemon
 
 
-Simple script that give you realtime datetime and battery capacity at X Window.
+Simple script that give you realtime datetime and battery capacity for X Window.
 
 simulating `xsetroot -name "text"`
 
-<img src="https://github.com/fadhil-riyanto/xrootd/blob/master/scr_img/2024-08-17_17-37.png?raw=true">
+example:
+<img src="https://github.com/fadhil-riyanto/xrootd/blob/master/scr_img/87.png?raw=true">
 
 # Usage
 
