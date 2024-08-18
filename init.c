@@ -26,6 +26,8 @@
 int sec_counter = 0;
 volatile int need_exit = 0;
 
+int charging_state = 0;
+
 
 struct xorg_data {
         Display *dpy;
@@ -106,12 +108,14 @@ static void notify_exec(char *title, char* body)
 static void call_when_battery_full(int current)
 {
         sec_counter = sec_counter + 1;
-        if (sec_counter == 1) {
-                if (current < 50) {
-                        notify_exec("warning", "Battery low");
+        if (sec_counter == 4) {
+                if (current < 15) {
+                        if (charging_state == 0)
+                                notify_exec("warning", "Battery low, Insert charger now...... ASAP");
                         
                 } else if (current > 95) {
-                        notify_exec("warning", "Battery full");
+                        if (charging_state == 1)
+                                notify_exec("Note", "Battery full, Please unplug the cable NOW ....");
                         
                 }
                 sec_counter = 0;
@@ -154,16 +158,27 @@ int main(int argc, char **argv, char *envp[])
         char randombuf[100];
 
         int bat0size = 0;
+        int bat0charging_size = 0;
 
         while (!need_exit) {
-                int fd = open_bat0("/sys/class/power_supply/BAT0/capacity");
+                int fd = open_bat0(BAT0_DIR);
                 char* bat0data = read_bat0(fd, &bat0size);
                 char* bat2cutted = newline_cut(bat0data, bat0size);
+
+                int fd_charging_state = open_bat0(BAT_CHARGING_STATE_0_DIR);
+                char* bat0chargingdata = read_bat0(fd_charging_state, &bat0charging_size);
+                char* bat2chargingcutted = newline_cut(bat0chargingdata, bat0charging_size);
+
+                if (strcmp(bat2chargingcutted, "Charging") == 0) {
+                        charging_state = 1;
+                } else {
+                        charging_state = 0;
+                }
 
                 char* timestr = get_time();
                 char* time = newline_cut(timestr, strlen(timestr) + 1);
 
-                snprintf(randombuf, 100, "%s %d %s", time, atoi(bat2cutted), DESKTOP_NAME);
+                snprintf(randombuf, 100, "%s %d (%s) %s", time, atoi(bat2cutted), bat2chargingcutted, DESKTOP_NAME);
 
                 x_start(&xorg_data);
                 xsetroot_summon(&xorg_data, randombuf);
@@ -173,8 +188,12 @@ int main(int argc, char **argv, char *envp[])
                 free(bat0data);
                 free(bat2cutted);
 
+                free(bat0chargingdata);
+                free(bat2chargingcutted);
+
                 free(time);
                 close_bat0(fd);
+                close_bat0(fd_charging_state);
                 sleep(1);
         }
 
