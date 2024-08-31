@@ -109,7 +109,7 @@ static void call_when_battery_full(int current)
 {
         sec_counter = sec_counter + 1;
         if (sec_counter == 4) {
-                if (current < 15) {
+                if (current < 25) {
                         if (charging_state == 0)
                                 notify_exec("warning", "Battery low, Insert charger now...... ASAP");
                         
